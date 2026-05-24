@@ -51,42 +51,66 @@
 .global _ResetHandle
 .global rom_service
 
-; ===========================================================
 ; ROM Header
-; ===========================================================
+; Standard BBC sideways ROM format:
+;   $8000: language entry (JMP or $00 if none)
+;   $8003: service entry (JMP or $00 if none)
+;   $8006: ROM type byte ($40 = service only, $C0 = language+service)
+;   $8007: version (BCD)
+;   $8008: null-terminated title
 .segment "rom_header"
-    .byte $80               ; ROM type - standard 16K
-    .byte "GEOS    "        ; title (8 bytes)
-rom_service_offset:
-    .word rom_service - $8000  ; service entry offset
-    .word $0000             ; language entry (none)
+    .byte $00, $00, $00         ; no language entry
+    jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
+    .byte $40                   ; ROM type: service only
+    .byte $01                   ; version 0.1
+    .byte "GEOS", $00           ; null-terminated title
 
 ; ===========================================================
 ; Service entry - called by MOS
 ; ===========================================================
 .segment "start"
 rom_service:
-    cpy #$04
+    cpy #$04                ; *command check?
     beq check_command
+    cpy #$08                ; *HELP?
+    beq help_command
+    rts
+
+help_command:
+    ; Print ROM name for *HELP
+    pha
+    ldx #0
+:   lda help_text,x
+    beq :+
+    jsr $FFEE               ; OSWRCH
+    inx
+    bne :-
+:   pla
     rts
 
 check_command:
-    pla
+    pla                     ; pop return addr low
     sta r0L
-    pla
+    pla                     ; pop return addr high
     sta r0H
     jsr skip_spaces
     ldy #0
 :   lda cmd_geos,y
     beq match_cmd
     cmp (r0L),y
+    bne not_match
     iny
-    beq match_cmd
-    rts                     ; not our command
+    bne :-
+not_match:
+    rts
+
 match_cmd:
-    pla                     ; discard return
+    pla                     ; discard return addr from skip_spaces
     pla
     ; fall through to _ResetHandle
+
+help_text:
+    .byte "GEOS KERNAL for BBC", 13, 10, 0
 
 ; ===========================================================
 ; Reset Handler

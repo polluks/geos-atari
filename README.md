@@ -1,7 +1,5 @@
 
-# BBC Micro Port
-
-See [README-BBC](README-BBC.md) for the BBC Micro proof-of-concept port.
+# Go to [README-BBC](README-BBC.md) first!
 
 # GEOS Source Code
 
