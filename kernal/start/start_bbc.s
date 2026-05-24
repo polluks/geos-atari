@@ -61,7 +61,7 @@
 .segment "rom_header"
     .byte $00, $00, $00         ; no language entry
     jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
-    .byte $40                   ; ROM type: service only
+    .byte $C0                   ; ROM type: service + key response
     .byte $01                   ; version 0.1
     .byte "GEOS", $00           ; null-terminated title
 
