@@ -8,7 +8,11 @@
 .include "geosmac.inc"
 .include "config.inc"
 .include "kernal.inc"
+.ifdef bbc
+.include "bbc.inc"
+.else
 .include "atari.inc"
+.endif
 
 .import InitMsePic
 .import _EnterDeskTop
@@ -43,8 +47,10 @@ _FirstInit:
 	LoadB minMouseSpeed, iniMinMouseSpeed
 	LoadB mouseAccel, iniMouseAccel
 
+	.ifdef atari
 	LoadB GTIA_COLPM0,  $3c			; hue/lum
 	LoadB GTIA_COLPM1,  $c4			; hue/lum
+	.endif
 
 	ldy #62
 @2:	lda #0

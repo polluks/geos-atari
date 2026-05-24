@@ -346,3 +346,22 @@
 .endmacro
 .endif
 
+.ifdef bbc
+.macro ASSERT_IN_BANK0
+.endmacro
+.macro ASSERT_NOT_IN_BANK0
+.endmacro
+.macro ASSERT_NOT_UNDER_ROM
+.endmacro
+.macro START_IO
+.endmacro
+.macro END_IO
+.endmacro
+.macro START_IO_X
+.endmacro
+.macro START_IO_Y
+.endmacro
+.macro ASSERT_NOT_BELOW_IO
+.endmacro
+.endif
+

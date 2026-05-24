@@ -47,6 +47,7 @@ PrmptOff1:
 
 __InitTextPrompt:
 	tay
+.ifndef bbc
 .import Player1Data
 	; clear whole sprite
 	ldx #0
@@ -55,6 +56,7 @@ __InitTextPrompt:
 	inx
 	bne :-
 	txa
+.endif
 
 	; clear the buffer
 	ldx #64

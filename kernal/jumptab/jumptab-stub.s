@@ -362,7 +362,11 @@
 
 .segment "jumptab"
 
+.ifdef bbc
+.assert *=$8100, error, "jump table must be at $8100 for BBC"
+.else
 .assert *=$c100, error, "jump table must be at $c100"
+.endif
 
 InterruptMain:
 	jmp _InterruptMain

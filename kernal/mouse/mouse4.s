@@ -10,7 +10,9 @@
 .include "kernal.inc"
 .include "c64.inc"
 
+.ifndef bbc
 .import KbdScanHelp3
+.endif
 
 .import CallRoutine
 .import DisablSprite
@@ -58,7 +60,9 @@ _DoCheckButtons:
 	ldx mouseVector+1
 	jsr CallRoutine
 @2:	bbrf KEYPRESS_BIT, pressFlag, @3
+.ifndef bbc
 	jsr KbdScanHelp3
+.endif
 	lda keyVector
 	ldx keyVector+1
 	jsr CallRoutine

@@ -11,7 +11,11 @@
 .include "geosmac.inc"
 .include "config.inc"
 .include "kernal.inc"
+.ifdef bbc
+.include "bbc.inc"
+.else
 .include "atari.inc"
+.endif
 
 .import BitMaskPow2
 .import FontSH5
@@ -728,10 +732,14 @@ FontPutChar:
 	cmp windowBottom
 	bcc @6
 	bne @7
-@6:	PushB PIA_PORTB
+@6:	.ifdef atari
+	PushB PIA_PORTB
 	MoveB atari_banks+0, PIA_PORTB
 	jsr Font_4
 	PopB PIA_PORTB
+	.else
+	jsr Font_4
+	.endif
 @7:	lda r5L
 	addv SC_BYTE_WIDTH	; next line
 	sta r5L

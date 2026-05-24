@@ -19,6 +19,11 @@ config_inc = 1
 	remove_dead_bytes = 1
 .endif
 
+.ifdef bbc
+	; BBC port - remove dead bytes for space
+	remove_dead_bytes = 1
+.endif
+
 ; Feel (almost) free to change values below:
 iniMaxMouseSpeed        = $7f                           ; range from $00-$7f
 iniMinMouseSpeed        = $1e                           ;

@@ -40,6 +40,20 @@
 .global _LdDeskAcc
 .global _RstrAppl
 
+.ifdef bbc
+
+.segment "deskacc1"
+_LdDeskAcc:
+    rts
+
+.segment "deskacc2"
+
+.segment "deskacc3"
+_RstrAppl:
+    rts
+
+.else
+
 .segment "deskacc1"
 
 _LdDeskAcc:
@@ -302,4 +316,5 @@ SaveSwapFile:
 
 dAccStart:	.word 0
 dAccLength:	.word 0
+.endif
 .endif

@@ -8,6 +8,10 @@
 .import BitMaskPow2
 
 .global BitMaskPow2Rev
+.ifdef bbc
+.global __BitMaskPow2Rev
+__BitMaskPow2Rev = BitMaskPow2Rev
+.endif
 
 .segment "bitmask1"
 

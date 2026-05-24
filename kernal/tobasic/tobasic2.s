@@ -6,14 +6,24 @@
 .include "geosmac.inc"
 .include "config.inc"
 .include "kernal.inc"
+.ifdef bbc
+.include "bbc.inc"
+.else
 .include "atari.inc"
+.endif
 
 .global __ToBASIC
 
 .segment "tobasic2"
 
-ASSERT_IN_BANK0
-
+.ifdef bbc
+__ToBASIC:
+	; Return to BBC MOS via BRK or reset
+	sei
+	ldx #$ff
+	txs
+	jmp ($FFFC)             ; Jump through MOS reset vector
+.else
 __ToBASIC:
 	; this can't be under ROM, copy trapoline before running
 	sei
@@ -33,3 +43,4 @@ __ToBASIC:
 	sta $033d			; make sure it's a cold boot
 	jmp ($fffc)			; jump through RESET vector  
 @tobasicend:
+.endif

@@ -8,7 +8,11 @@
 .include "geosmac.inc"
 .include "config.inc"
 .include "kernal.inc"
+.ifdef bbc
+.include "bbc.inc"
+.else
 .include "atari.inc"
+.endif
 
 .import _GetScanLine
 
@@ -52,17 +56,23 @@ BitmapUpHelp:			; render one row
 	MoveB r1L, r9L		; copy xpos to r9L (current card offset)
 
 	LoadB interrupt_lock, $ff
+	.ifdef atari
 	MoveB PIA_PORTB, PIA_PORTB_SAVE
+	.endif
 
 :	jsr BitmapDecode
+	.ifdef atari
 	ldy atari_banks+0
 	sty PIA_PORTB
+	.endif
 	ldy r9L
 	sta (r5),y
 	sta (r6),y
+	.ifdef atari
 PIA_PORTB_SAVE = *+1
 	lda #0
 	sta PIA_PORTB
+	.endif
 	inc r9L
 	dec r3H
 	bne :-

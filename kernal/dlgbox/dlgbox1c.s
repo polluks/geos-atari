@@ -20,9 +20,7 @@
 .import FrameRectangle
 .import Rectangle
 .import SetPattern
-.ifdef atari
 .import ImprintRectangle
-.endif
 
 .global CalcDialogCoords
 .global DlgBoxPrep

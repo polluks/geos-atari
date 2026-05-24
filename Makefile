@@ -4,6 +4,14 @@ VARIANT     ?= atari
 DRIVE       ?= ramdrv_atari
 INPUT       ?= joydrv_atari
 
+ifeq ($(SYSTEM), bbc)
+VARIANT      = bbc
+DRIVE        = 
+INPUT        = joydrv_bbc
+BUILD        = bbc
+ROM_RESULT   = GEOS_BBC.rom
+endif
+
 AS           = ca65
 LD           = ld65
 
@@ -156,6 +164,119 @@ KERNAL_SOURCES = \
 	kernal/hw/ramloader.s
 endif
 
+# BBC Micro port
+ifeq ($(VARIANT), bbc)
+KERNAL_SOURCES = \
+	input/joydrv_bbc.s \
+	kernal/start/start_bbc.s \
+	kernal/bswfont/bswfont.s \
+	kernal/bitmask/bitmask1.s \
+	kernal/bitmask/bitmask2.s \
+	kernal/bitmask/bitmask3.s \
+	kernal/conio/conio1.s \
+	kernal/conio/conio2.s \
+	kernal/conio/conio3a.s \
+	kernal/conio/conio3b.s \
+	kernal/conio/conio4.s \
+	kernal/conio/conio5.s \
+	kernal/conio/conio6.s \
+	kernal/dlgbox/dlgbox1a.s \
+	kernal/dlgbox/dlgbox1b.s \
+	kernal/dlgbox/dlgbox1c.s \
+	kernal/dlgbox/dlgbox1d.s \
+	kernal/dlgbox/dlgbox1e1.s \
+	kernal/dlgbox/dlgbox1e2.s \
+	kernal/dlgbox/dlgbox1f.s \
+	kernal/dlgbox/dlgbox1g.s \
+	kernal/dlgbox/dlgbox1h.s \
+	kernal/dlgbox/dlgbox1i.s \
+	kernal/dlgbox/dlgbox1j.s \
+	kernal/dlgbox/dlgbox1k.s \
+	kernal/dlgbox/dlgbox2.s \
+	kernal/files/files1a2a.s \
+	kernal/files/files1a2b.s \
+	kernal/files/files1b.s \
+	kernal/files/files2.s \
+	kernal/files/files3.s \
+	kernal/files/files6a.s \
+	kernal/files/files6b.s \
+	kernal/files/files6c.s \
+	kernal/files/files7.s \
+	kernal/files/files8.s \
+	kernal/files/files9.s \
+	kernal/files/files10.s \
+	kernal/fonts/fonts1.s \
+	kernal/fonts/fonts2.s \
+	kernal/fonts/fonts3.s \
+	kernal/fonts/fonts4.s \
+	kernal/fonts/fonts4a.s \
+	kernal/fonts/fonts4b.s \
+	kernal/graph/bitmapclip.s \
+	kernal/graph/bitmapup.s \
+	kernal/graph/clrscr.s \
+	kernal/graph/graphicsstring.s \
+	kernal/graph/graph2l1.s \
+	kernal/graph/inline.s \
+	kernal/graph/inlinefunc.s \
+	kernal/start/inlinefuncdebug.s \
+	kernal/graph/line.s \
+	kernal/graph/pattern.s \
+	kernal/graph/point.s \
+	kernal/graph/rect.s \
+	kernal/graph/scanline.s \
+	kernal/hw/hw_bbc.s \
+	kernal/hw/bank_jmptab_bbc.s \
+	kernal/icon/icon1.s \
+	kernal/icon/icon2.s \
+	kernal/irq/irq_bbc.s \
+	kernal/init/init1.s \
+	kernal/init/init2.s \
+	kernal/init/init4.s \
+	kernal/jumptab/jumptab-stub.s \
+	kernal/keyboard/keyboard_bbc.s \
+	kernal/load/deskacc.s \
+	kernal/load/load1a.s \
+	kernal/load/load1b.s \
+	kernal/load/load1c.s \
+	kernal/load/load2.s \
+	kernal/load/load3.s \
+	kernal/load/load4b.s \
+	kernal/mainloop/mainloop1.s \
+	kernal/mainloop/mainloop3.s \
+	kernal/math/shl.s \
+	kernal/math/shr.s \
+	kernal/math/muldiv.s \
+	kernal/math/neg.s \
+	kernal/math/dec.s \
+	kernal/math/random.s \
+	kernal/math/crc.s \
+	kernal/memory/memory1a.s \
+	kernal/memory/memory1b.s \
+	kernal/memory/memory2.s \
+	kernal/memory/memory3.s \
+	kernal/menu/menu1.s \
+	kernal/menu/menu2.s \
+	kernal/menu/menu3.s \
+	kernal/misc/misc.s \
+	kernal/mouse/mouse1.s \
+	kernal/mouse/mouse2.s \
+	kernal/mouse/mouse3.s \
+	kernal/mouse/mouse4.s \
+	kernal/mouse/mouseptr.s \
+	kernal/patterns/patterns.s \
+	kernal/process/process1.s \
+	kernal/process/process2.s \
+	kernal/process/process3a.s \
+	kernal/process/process3aa.s \
+	kernal/process/process3b.s \
+	kernal/process/process3c.s \
+	kernal/rename.s \
+	kernal/sprites/sprites_bbc.s \
+	kernal/time/time_bbc.s \
+	kernal/tobasic/tobasic2.s \
+	kernal/vars/vars.s
+endif
+
 DEPS= \
 	config.inc \
 	inc/c64.inc \
@@ -173,6 +294,11 @@ DEPS += \
 	inc/atari.inc
 endif
 
+ifeq ($(VARIANT), bbc)
+DEPS += \
+	inc/bbc.inc
+endif
+
 KERNAL_OBJS=$(KERNAL_SOURCES:.s=.o)
 ALL_OBJS=$(KERNAL_OBJS)
 
@@ -185,6 +311,8 @@ ALL_BINS= \
 
 ifeq ($(VARIANT), atari)
 all: $(BUILD_DIR)/$(XEX_RESULT)
+else ifeq ($(VARIANT), bbc)
+all: $(BUILD_DIR)/$(ROM_RESULT)
 else
 all: $(BUILD_DIR)/$(D64_RESULT)
 endif
@@ -197,6 +325,18 @@ ifeq ($(VARIANT), atari)
 $(BUILD_DIR)/$(XEX_RESULT): $(ALL_BINS)
 # no need for processing that bin into xex - all is handled by ld65 config file
 	cp $(BUILD_DIR)/kernal/kernal.bin $(BUILD_DIR)/$(XEX_RESULT)
+endif
+
+ifeq ($(VARIANT), bbc)
+$(BUILD_DIR)/$(ROM_RESULT): $(ALL_BINS)
+	cp $(BUILD_DIR)/kernal/kernal.bin $(BUILD_DIR)/$(ROM_RESULT)
+# Pad to exactly 16KB if needed
+	@size=$$(wc -c < $(BUILD_DIR)/$(ROM_RESULT)); \
+	if [ $$size -lt 16384 ]; then \
+		padding=$$((16384 - $$size)); \
+		dd if=/dev/zero bs=1 count=$$padding >> $(BUILD_DIR)/$(ROM_RESULT) 2>/dev/null; \
+	fi
+	@echo "Created BBC ROM: $(BUILD_DIR)/$(ROM_RESULT) ($$(wc -c < $(BUILD_DIR)/$(ROM_RESULT)) bytes)"
 endif
 
 .EXPORT_ALL_VARIABLES:
@@ -215,6 +355,10 @@ $(BUILD_DIR)/%.o: %.s
 
 kernal/kernal_$(VARIANT).cfg.out: kernal/kernal_$(VARIANT).cfg
 	cat $< | sed -e 's/#.*//g' | sed -e 's/^.if/#if/g' | sed -e 's/^.endif/#endif/g' | gcc -D __ATARI_BANKS=$(ATARI_BANKS) -E - -o $@
+
+# BBC linker config doesn't need preprocessing
+kernal/kernal_bbc.cfg.out: kernal/kernal_bbc.cfg
+	cat $< > $@
 
 $(BUILD_DIR)/kernal/kernal.bin: $(PREFIXED_KERNAL_OBJS) kernal/kernal_$(VARIANT).cfg.out
 	@mkdir -p $$(dirname $@)

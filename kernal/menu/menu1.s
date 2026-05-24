@@ -47,9 +47,7 @@
 .import _HorizontalLine
 .endif
 
-.ifdef atari
 .import _ImprintRectangle
-.endif
 
 .global DoMenu0
 .global GetMenuDesc

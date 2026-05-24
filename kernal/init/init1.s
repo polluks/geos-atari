@@ -13,7 +13,9 @@
 .import _DoFirstInitIO
 .import _InitRam
 .import _FillRam
+.ifndef bbc
 .import Player0Data
+.endif
 
 .global InitGEOEnv
 .global _InitMachine
@@ -26,10 +28,12 @@ ASSERT_NOT_UNDER_ROM
 _InitMachine:
 	jsr _DoFirstInitIO
 InitGEOEnv:
+.ifndef bbc
 	; clear all sprite data
 	LoadB r2L, 0
 	LoadW r1, Player0Data
 	LoadW r0, $0400
 	jsr _FillRam
+.endif
 	LoadW r0, InitRamTab
 	jmp _InitRam

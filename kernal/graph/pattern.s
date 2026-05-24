@@ -13,8 +13,12 @@
 
 .global __SetPattern
 
+.ifdef bbc
+.segment "vars"
+.else
 .segment "ramexp2"
 ASSERT_NOT_IN_BANK0
+.endif
 curPatternBuf:	.res 8, 0
 
 .segment "graph2l2"

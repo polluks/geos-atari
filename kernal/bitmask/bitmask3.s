@@ -7,6 +7,12 @@
 
 .global BitMaskLeadingSet
 .global BitMaskLeadingClear
+.ifdef bbc
+.global __BitMaskLeadingSet
+.global __BitMaskLeadingClear
+__BitMaskLeadingSet = BitMaskLeadingSet
+__BitMaskLeadingClear = BitMaskLeadingClear
+.endif
 
 .segment "bitmask3"
 

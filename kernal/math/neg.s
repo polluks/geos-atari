@@ -8,13 +8,19 @@
 .include "geosmac.inc"
 .include "config.inc"
 .include "kernal.inc"
+.ifdef bbc
+.include "bbc.inc"
+.else
 .include "atari.inc"
+.endif
 
 .global __Dabs
 .global __Dnegate
 
 .segment "math1c1"
+.ifdef atari
 .assert * >= ATARI_EXPBASE && * < ATARI_EXPBASE+ATARI_EXP_WINDOW, error, "This code must be in bank0"
+.endif
 
 ;---------------------------------------------------------------
 ; Dabs                                                    $C16F
