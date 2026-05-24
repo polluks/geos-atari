@@ -61,7 +61,7 @@
 .segment "rom_header"
     .byte $00, $00, $00         ; no language entry
     jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
-    .byte $C0                   ; ROM type: service + key response
+    .byte $40                   ; ROM type: service entry only
     .byte $01                   ; version 0.1
     .byte "GEOS", $00           ; null-terminated title
 
@@ -70,7 +70,9 @@
 ; ===========================================================
 .segment "start"
 rom_service:
-    cpy #$04                ; *command check?
+    cpy #$04                ; *command? (some MOS versions)
+    beq check_command
+    cpy #$09                ; *command? (MOS 1.20+)
     beq check_command
     cpy #$08                ; *HELP?
     beq help_command
