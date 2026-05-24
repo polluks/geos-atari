@@ -313,6 +313,12 @@ ifeq ($(VARIANT), atari)
 all: $(BUILD_DIR)/$(XEX_RESULT)
 else ifeq ($(VARIANT), bbc)
 all: $(BUILD_DIR)/$(ROM_RESULT)
+
+ssd: $(BUILD_DIR)/$(ROM_RESULT) $(BUILD_DIR)/GEOS_BBC.ssd
+
+DESKTOP_CVT ?= ramdisk/cvt-320k/DESKTOP.cvt
+$(BUILD_DIR)/GEOS_BBC.ssd: $(DESKTOP_CVT)
+	python3 tools/mkssd.py -o $@ $(DESKTOP_CVT)
 else
 all: $(BUILD_DIR)/$(D64_RESULT)
 endif

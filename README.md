@@ -1,5 +1,7 @@
 
-# Go to [README-Atari](README-Atari.md) first!
+# BBC Micro Port
+
+See [README-BBC](README-BBC.md) for the BBC Micro proof-of-concept port.
 
 # GEOS Source Code
 
