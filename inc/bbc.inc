@@ -108,3 +108,8 @@ TIMER_100HZ     = 20000
 ; Actually VIA timer counts one more after loading, so: 40000 - 1 = 39999
 T1_100HZ_LO     = <39999
 T1_100HZ_HI     = >39999
+
+; OS entry points
+OSWRCH  = $FFEE
+OSFIND  = $FFCE
+OSBGET  = $FFCA

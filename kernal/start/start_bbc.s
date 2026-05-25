@@ -70,31 +70,27 @@
 ; ===========================================================
 .segment "start"
 rom_service:
-    cpy #$04                ; *command? (some MOS versions)
-    beq check_command
-    cpy #$09                ; *command? (MOS 1.20+)
+    cpy #$09                ; *command (MOS 1.20+)
     beq check_command
     cpy #$08                ; *HELP?
     beq help_command
     rts
 
 help_command:
-    ; Print ROM name for *HELP
     pha
     ldx #0
 :   lda help_text,x
     beq :+
-    jsr $FFEE               ; OSWRCH
+    jsr OSWRCH
     inx
     bne :-
 :   pla
     rts
 
 check_command:
-    pla                     ; pop return addr low
-    sta r0L
-    pla                     ; pop return addr high
-    sta r0H
+    ; XY = command string pointer (after *)
+    stx r0L
+    sty r0H
     jsr skip_spaces
     ldy #0
 :   lda cmd_geos,y
@@ -107,9 +103,8 @@ not_match:
     rts
 
 match_cmd:
-    pla                     ; discard return addr from skip_spaces
-    pla
-    ; fall through to _ResetHandle
+    ; _ResetHandle will reset stack with txs
+    jmp _ResetHandle
 
 help_text:
     .byte "GEOS KERNAL for BBC", 13, 10, 0
