@@ -100,6 +100,7 @@ check_command:
     lda #0
     adc $F3
     sta r0H
+    ldy #0
     jsr skip_spaces
     ldy #0
 :   lda cmd_geos,y
