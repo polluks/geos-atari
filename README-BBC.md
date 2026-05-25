@@ -19,6 +19,24 @@ the hardware, draws a desktop picture, and attempts to load `DESK TOP` from disk
 - make
 - python3 (for SSD creation)
 
+## MOS 1.20 Disassembly
+
+The annotated MOS 1.20 disassembly by Toby Nelson is invaluable for
+understanding the OS side of sideways ROMs:
+
+- HTML: <https://tobylobster.github.io/mos/>
+- Source: <https://tobylobster.github.io/mos/os120_acme.a>
+
+Key service call numbers:
+
+| Call | Constant                           | Purpose              |
+|------|------------------------------------|----------------------|
+| $04  | `romServiceCallUnrecognisedCommand`| Unrecognised *command|
+| $09  | `romServiceCallHelp`               | *HELP                |
+
+See Chapter 12 (OSCLI) and the `osbyte143EntryPoint` (service dispatch)
+in the disassembly for details.
+
 ## Building
 
 ```sh

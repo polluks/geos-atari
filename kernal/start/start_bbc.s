@@ -61,53 +61,73 @@
 .segment "rom_header"
     .byte $00, $00, $00         ; no language entry
     jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
-    .byte $40                   ; ROM type: service entry only
-    .byte $01                   ; version 0.1
+    .byte $82                   ; ROM type: service entry (bit7=1) no language
+    .byte $10                   ; version 1.0 / copyright offset to $8010
     .byte "GEOS", $00           ; null-terminated title
+    .byte $00, $00, $00         ; padding to $8010
+    .byte $00, $28, $43, $29   ; "(C)" copyright string for MOS boot scan
 
 ; ===========================================================
 ; Service entry - called by MOS
+;   A = service call number
+;   For $04 (unrecognised *command): Y = offset in ($F2) buffer
 ; ===========================================================
 .segment "start"
 rom_service:
-    cpy #$09                ; *command (MOS 1.20+)
-    beq check_command
-    cpy #$08                ; *HELP?
+    stx $12                 ; save our ROM slot number
+    cmp #$09                ; *HELP service call
     beq help_command
+    cmp #$04                ; unrecognised *command
+    beq check_command
+    rts                     ; unhandled, return A unchanged (non-zero = continue scan)
+
+; -----------------------------------------------------------------------
+; *HELP: print help text, return A != 0 (don't claim, let other ROMs print)
+; -----------------------------------------------------------------------
+help_command:
+    jsr print_help_text
+    lda #1                  ; A != 0: continue scanning to next ROM
     rts
 
-help_command:
-    pha
+; -----------------------------------------------------------------------
+; Unrecognised *command: Y = offset to command in ($F2) string buffer
+; -----------------------------------------------------------------------
+check_command:
+    tya
+    clc
+    adc $F2
+    sta r0L
+    lda #0
+    adc $F3
+    sta r0H
+    jsr skip_spaces
+    ldy #0
+:   lda cmd_geos,y
+    beq match_geos
+    cmp (r0L),y
+    bne not_match
+    iny
+    bne :-
+match_geos:
+    jmp _ResetHandle
+not_match:
+    lda #1                  ; A != 0: continue scanning to next ROM
+    rts
+
+cmd_geos:
+    .byte "GEOS", 0
+
+help_text:
+    .byte "GEOS KERNEL for BBC", 13, 10, 0
+
+print_help_text:
     ldx #0
 :   lda help_text,x
     beq :+
     jsr OSWRCH
     inx
     bne :-
-:   pla
-    rts
-
-check_command:
-    ; XY = command string pointer (after *)
-    stx r0L
-    sty r0H
-    jsr skip_spaces
-    ldy #0
-:   lda cmd_geos,y
-    beq match_cmd
-    cmp (r0L),y
-    bne not_match
-    iny
-    bne :-
-not_match:
-    rts
-
-match_cmd:
-    ; _ResetHandle will reset stack with txs
-    jmp _ResetHandle
-
-help_text:
-    .byte "GEOS KERNAL for BBC", 13, 10, 0
+:   rts
 
 ; ===========================================================
 ; Reset Handler
@@ -162,9 +182,6 @@ _ResetHandle:
     ; Halt
     cli
 :   jmp :-
-
-cmd_geos:
-    .byte "GEOS", 0
 
 skip_spaces:
 :   lda (r0L),y
