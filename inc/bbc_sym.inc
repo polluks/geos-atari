@@ -6,7 +6,7 @@
 MOUSE_SPRNUM            =       0
 
 ; Screen buffer moved to $7000 (linear framebuffer, 40*200=8000 bytes)
-SCREEN_BASE             =       $7000
+SCREEN_BASE             =       $5A00
 BACK_SCR_BASE           =       $7A00   ; back buffer in remaining space
 
 ; Kernel variables moved to $5800 area
