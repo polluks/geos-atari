@@ -12,6 +12,7 @@
 .import CallRoutine
 .import jiffyCounter
 .import KbdQueFlag
+.import ledDivider
 
 ; Vars
 .global _IRQHandler
@@ -61,11 +62,33 @@ _IRQHandler:
     ; Acknowledge Timer 1 interrupt by reading T1CL
     lda SYSVIA_T1CL
 
+    ; Slow blink Caps Lock LED at ~1Hz (divider counts to 100 at 100Hz)
+    inc ledDivider
+    lda ledDivider
+    cmp #100
+    bne :+
+    lda #0
+    sta ledDivider
+:
+
     ; Increment jiffy counter for timekeeping
     inc jiffyCounter
 
     ; Call keyboard scan
     jsr _DoKeyboardScan
+
+    ; Restore Caps Lock LED state after keyboard scan (which overwrites PB0)
+    lda ledDivider
+    cmp #50
+    bcs :+
+    lda SYSVIA_ORB
+    and #$FE              ; clear bit 0 = LED on (active low)
+    sta SYSVIA_ORB
+    jmp :++
+:   lda SYSVIA_ORB
+    ora #$01              ; set bit 0 = LED off
+    sta SYSVIA_ORB
+:
 
     ; Check keyboard queue flag
     ldy KbdQueFlag

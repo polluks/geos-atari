@@ -72,6 +72,7 @@
 .global verifyFlag
 .global TempCurDrive
 .global scr_mobx
+.global ledDivider
 
 .segment "vars"
 
@@ -161,6 +162,7 @@ RecordTableTS:	.word 0
 verifyFlag:	.byte 0
 TempCurDrive:	.byte 0
 scr_mobx:	.word 0
+ledDivider:	.byte 0
 
 
 .ifdef wheels ; moved

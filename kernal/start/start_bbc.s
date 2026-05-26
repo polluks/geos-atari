@@ -63,7 +63,7 @@
     .byte $00, $00, $00         ; no language entry
     jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
     .byte $82                   ; ROM type: service entry (bit7=1) no language
-    .byte $10                   ; version 1.0 / copyright offset to $8010
+    .byte $90                   ; bit7=1: copyright offset $10 → $8010; also version 1.0
     .byte "GEOS", $00           ; null-terminated title
     .byte $00, $00, $00         ; padding to $8010
     .byte $00, $28, $43, $29   ; "(C)" copyright string for MOS boot scan
@@ -140,20 +140,20 @@ _ResetHandle:
     ldx #$FF
     txs
 
+    ; Initialize hardware (mode set via OS, may clobber vectors)
+    jsr init_hardware
+
     ; Install our IRQ handler into OS vector
     lda #<_IRQHandler
     sta $0202
     lda #>_IRQHandler
     sta $0203
 
-    ; Initialize hardware
-    jsr init_hardware
-
-    ; Clear BSS area ($5800-$59FF)
+    ; Clear BSS area ($2E00-$2FFF)
     lda #0
     ldx #0
-:   sta $5800,x
-    sta $5900,x
+:   sta $2E00,x
+    sta $2F00,x
     inx
     bne :-
 
@@ -161,11 +161,28 @@ _ResetHandle:
     jsr InitGEOEnv
     jsr MouseInit
 
-    ; Draw to linear framebuffer
-    jsr draw_desktop
+    ; Draw checkerboard test pattern (verify hardware display)
+    jsr draw_checkerboard
 
-    ; Convert framebuffer to BBC mode 1 screen format
-    jsr fb_to_screen
+    ; Delay ~2 seconds so user can see the checkerboard
+    lda #12
+    sta r4L
+delay_1:
+    lda #0
+    sta r3L
+delay_2:
+    lda #0
+    sta r2L
+delay_3:
+    dec r2L
+    bne delay_3
+    dec r3L
+    bne delay_2
+    dec r4L
+    bne delay_1
+
+    ; Draw to screen
+    jsr draw_desktop
 
     ; Start 100Hz timer and enter GEOS main loop
     jsr initVIA
@@ -202,29 +219,33 @@ init_hardware:
     lda #%01111111
     sta SYSVIA_IER
 
-    ; Set CRTC for mode 1 (320x200, 4 colors)
-    ; R0=127, R1=80, R2=98, R3=40, R4=38, R5=0, R6=25
-    ; R7=32, R8=33, R9=7
+    ; Use OS to set mode 4 (320x256, 2 colours, 1bpp linear)
+    lda #22
+    jsr OSWRCH
+    lda #4
+    jsr OSWRCH
 
-    ldx #0
-crtc_loop:
-    lda crtc_regs,x
+    ; Override R6 = 25 (200 scanlines = 25 rows × 8, not OS default 32)
+    lda #CRTC_R6
     sta CRTC_ADDR
-    inx
-    lda crtc_regs,x
+    lda #25
     sta CRTC_DATA
-    inx
-    cpx #24                 ; 12 registers * 2 bytes
-    bne crtc_loop
 
-    ; Set Video ULA for mode 1 (80 col, graphics)
-    lda #%00000011
-    sta VIDULA_CTL
+    ; Override start address: MA=$0938 → physical $3000+$0938=$3938
+    ; SCREEN_BASE=$3900, pixel data at $3938 (= SCREEN_BASE + 56)
+    lda #CRTC_R12
+    sta CRTC_ADDR
+    lda #$09                ; high 6 bits of MA = $09
+    sta CRTC_DATA
+    lda #CRTC_R13
+    sta CRTC_ADDR
+    lda #$38                ; low 8 bits of MA = $38
+    sta CRTC_DATA
 
-    ; Clear screen to black ($3000-$79FF)
-    lda #>$3000
+    ; Clear screen to black ($3900-$5FFF = 9KB)
+    lda #>$3900
     sta r0H
-    lda #<$3000
+    lda #<$3900
     sta r0L
     ldy #0
     tya
@@ -233,27 +254,13 @@ crtc_loop:
     bne :-
     inc r0H
     lda r0H
-    cmp #$7A
+    cmp #$60
     bne :-
 
     rts
 
-crtc_regs:
-    .byte CRTC_R0, 127
-    .byte CRTC_R1, 80
-    .byte CRTC_R2, 98
-    .byte CRTC_R3, 40
-    .byte CRTC_R4, 38
-    .byte CRTC_R5, 0
-    .byte CRTC_R6, 25
-    .byte CRTC_R7, 32
-    .byte CRTC_R8, 33      ; interlace (1MHz, 20kHz)
-    .byte CRTC_R9, 7       ; 8 scanlines per char row
-    .byte CRTC_R12, 0      ; Start address high
-    .byte CRTC_R13, 0      ; Start address low
-
 ; ===========================================================
-; Draw desktop-like display to framebuffer at $7000
+; Draw desktop-like display to linear framebuffer
 ; ===========================================================
 draw_desktop:
     ; Clear screen
@@ -405,61 +412,20 @@ draw_desktop:
     rts
 
 ; ===========================================================
-; Convert framebuffer ($7000) to BBC mode 1 screen ($3000)
-;
-; GEOS: 40 bytes/scanline, 200 scanlines, 1bpp, linear
-; BBC mode 1: interleaved, 2bpp
-;
-; Uses zero-page registers:
-;   r0L/r0H = source pointer
-;   r1L/r1H = dest / temp pointer
-;   r2L = Y counter (0-199)
-;   r3L = byte counter (0-39)
-;   r4L = char_row (Y/8), temp
-;   r5L = char_scan (Y%8)
-;   r6L/r6H = dest address computation
+; Draw checkerboard test pattern to verify hardware display
+; 8x8 pixel squares, alternating black/white
+; Writes directly to screen memory at $3038 (CRTC start addr)
 ; ===========================================================
-fb_to_screen:
+draw_checkerboard:
     lda #0
     sta r2L                 ; Y = 0
 
-yloop:
+yc_cb:
+    ; Compute Y * 40 into r0
     lda r2L
-    lsr
-    lsr
-    lsr                     ; A = Y/8
-    sta r4L                 ; char_row
-
-    lda r2L
-    and #7
-    sta r5L                 ; char_scan
-
-    lda #0
-    sta r3L                 ; byte counter = 0
-
-byteloop:
-    jsr convert_pixels
-
-    inc r3L
-    lda r3L
-    cmp #40
-    bne byteloop
-
-    inc r2L
-    lda r2L
-    cmp #200
-    bne yloop
-
-    rts
-
-; Convert one GEOS byte to 2 BBC bytes and write to screen
-convert_pixels:
-    ; Source = SCREEN_BASE + 56 + Y * 40 + byte_n
-    ; Compute Y * 40 using 16-bit arithmetic: Y*40 = Y*32 + Y*8 = (Y<<5) + (Y<<3)
-    lda r2L                 ; Y (0-199)
     sta r1L
     lda #0
-    sta r1H                 ; r1 = Y (16-bit)
+    sta r1H
 
     ; r1 = Y * 8
     asl r1L
@@ -467,9 +433,9 @@ convert_pixels:
     asl r1L
     rol r1H
     asl r1L
-    rol r1H                 ; r1 = Y * 8
+    rol r1H
 
-    ; r0 = r1 = Y * 8
+    ; r0 = Y * 8
     lda r1L
     sta r0L
     lda r1H
@@ -479,9 +445,9 @@ convert_pixels:
     asl r1L
     rol r1H
     asl r1L
-    rol r1H                 ; r1 = Y * 32
+    rol r1H
 
-    ; r0 = r0 + r1 = Y * 8 + Y * 32 = Y * 40
+    ; r0 = Y * 8 + Y * 32 = Y * 40
     clc
     lda r0L
     adc r1L
@@ -490,137 +456,55 @@ convert_pixels:
     adc r1H
     sta r0H
 
-    ; Add byte_n
+    ; Add $3938 = SCREEN_BASE + 56
     clc
     lda r0L
-    adc r3L
+    adc #$38
     sta r0L
     lda r0H
-    adc #0
+    adc #$39
     sta r0H
 
-    ; Add SCREEN_BASE + 56
-    clc
-    lda r0L
-    adc #<(SCREEN_BASE + 56)
-    sta r0L
-    lda r0H
-    adc #>(SCREEN_BASE + 56)
-    sta r0H
+    ; Determine base pattern for this row of 8-scanline squares
+    lda r2L
+    lsr
+    lsr
+    lsr                     ; Y / 8
+    and #1                  ; row parity (0 or 1)
+    sta r4L
 
-    ldy #0
-    lda (r0L),y             ; Read GEOS byte
-    sta r7L                 ; geos_byte
-
-    ; GEOS framebuffer: bit 7 = leftmost pixel, bit 0 = rightmost pixel
-    ; BBC Mode 1: addr = pixels 0-3 (left), addr+1 = pixels 4-7 (right)
-    ;   Each pixel = 2 bits: %00 = black, %11 = white (monochrome)
-
-    ; Pass 1: create BBC byte 0 (pixels 0-3, from GEOS bits 7-4)
     lda #0
-    asl r7L
-    bcc :+
-    ora #%11000000
-:   asl r7L
-    bcc :+
-    ora #%00110000
-:   asl r7L
-    bcc :+
-    ora #%00001100
-:   asl r7L
-    bcc :+
-    ora #%00000011
-:   sta r7H                 ; Save BBC byte 0 (pixels 0-3)
+    sta r3L                 ; byte offset = 0
 
-    ; Pass 2: create BBC byte 1 (pixels 4-7, from GEOS bits 3-0)
-    lda #0
-    asl r7L
-    bcc :+
-    ora #%11000000
-:   asl r7L
-    bcc :+
-    ora #%00110000
-:   asl r7L
-    bcc :+
-    ora #%00001100
-:   asl r7L
-    bcc :+
-    ora #%00000011
-:   pha                     ; Push BBC byte 1 (pixels 4-7) first (stack bottom)
-
-    lda r7H                 ; BBC byte 0 (pixels 0-3)
-    pha                     ; Push on top (stack top, popped first)
-
-    ; Calculate BBC destination address
-    ; dest = $3000 + char_row*640 + char_scan*80 + byte_n*2
-    ;
-    ; char_row * 640 = char_row * $0280
-    lda r4L                 ; char_row
-    beq skip_row_mul
-    tax
-    lda #0
-    sta r6L
-    sta r6H
-:   clc
-    lda #$80
-    adc r6L
-    sta r6L
-    lda #$02
-    adc r6H
-    sta r6H
-    dex
-    bne :-
-    jmp do_scan_add
-
-skip_row_mul:
-    lda #0
-    sta r6L
-    sta r6H
-
-do_scan_add:
-    ; Add char_scan * 80
-    lda r5L
-    beq skip_scan_mul
-    tax
-:   clc
-    lda #80
-    adc r6L
-    sta r6L
-    lda #0
-    adc r6H
-    sta r6H
-    dex
-    bne :-
-
-skip_scan_mul:
-    ; Add byte_n * 2
+xc_cb:
     lda r3L
-    asl
-    clc
-    adc r6L
-    sta r6L
-    lda r6H
-    adc #0
-    sta r6H
-
-    ; Add $3000 base
-    clc
-    lda r6H
-    adc #$30
-    sta r6H
-
-    ; Write to screen memory
-    ; Stack: [BBC byte 1] [BBC byte 0]  (byte 0 on top)
+    and #1
+    eor r4L                 ; byte parity XOR row parity
+    bne black_cb
+    lda #$FF
+    bne write_cb
+black_cb:
+    lda #$00
+write_cb:
     ldy #0
-    pla
-    sta (r6L),y             ; BBC byte 0 (pixels 0-3)
+    sta (r0L),y
 
-    ; Move to next byte
-    inc r6L
-    bne :+
-    inc r6H
-:   pla
-    sta (r6L),y             ; BBC byte 1 (pixels 4-7)
+    inc r3L
+    lda r3L
+    cmp #40
+    beq next_y_cb
+
+    ; Advance dest pointer by 1
+    inc r0L
+    bne xc_cb
+    inc r0H
+    jmp xc_cb
+
+next_y_cb:
+    inc r2L
+    lda r2L
+    cmp #200
+    bne yc_cb
 
     rts
 

@@ -5,9 +5,11 @@
 ; Override sprite-related addresses
 MOUSE_SPRNUM            =       0
 
-; Screen buffer moved to $7000 (linear framebuffer, 40*200=8000 bytes)
-SCREEN_BASE             =       $5A00
-BACK_SCR_BASE           =       $7A00   ; back buffer in remaining space
+; Screen memory at $3900 — CRTC MA=$0938 → physical $3938 (GEOS data starts $3938)
+; $3000 screen window + MA offset: physical = $3000 + MA
+; MA = $0938 (R12=$09, R13=$38) → physical $3938 = SCREEN_BASE + 56
+SCREEN_BASE             =       $3900
+BACK_SCR_BASE           =       $3900   ; same as SCREEN_BASE (no double-buffering)
 
 ; Kernel variables moved to $5800 area
 OS_VARS                 =       $5800

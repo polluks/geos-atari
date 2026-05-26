@@ -196,7 +196,7 @@ dlgBoxRamBuf            =       $851f ; dlgbox; to $8697
 ;
 DISK_BASE               =       $9000 ; files
 .ifdef bbc
-SCREEN_BASE             =       $5A00 ; graph, boot (linear framebuffer in RAM, after BSS)
+SCREEN_BASE             =       $3900 ; graph, boot (BBC: CRTC MA=$0938→$3938)
 .else
 SCREEN_BASE             =       $a000 ; graph, boot
 .endif
