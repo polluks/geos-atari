@@ -111,5 +111,6 @@ T1_100HZ_HI     = >39999
 
 ; OS entry points
 OSWRCH  = $FFEE
+OSWORD  = $FFF1
 OSFIND  = $FFCE
 OSBGET  = $FFCA

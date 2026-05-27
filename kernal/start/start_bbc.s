@@ -62,11 +62,10 @@
 .segment "rom_header"
     .byte $00, $00, $00         ; no language entry
     jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
-    .byte $82                   ; ROM type: service entry (bit7=1) no language
+    .byte $80                   ; ROM type: service entry (bit7=1) no language
     .byte $90                   ; bit7=1: copyright offset $10 → $8010; also version 1.0
-    .byte "GEOS", $00           ; null-terminated title
-    .byte $00, $00, $00         ; padding to $8010
-    .byte $00, $28, $43, $29   ; "(C)" copyright string for MOS boot scan
+    .byte $01, "GEOS!", $00, $00 ; prefix + null-terminated title
+    .byte $28, $43, $29         ; "(C)" copyright string for MOS boot scan
 
 ; ===========================================================
 ; Service entry - called by MOS
@@ -79,41 +78,60 @@ rom_service:
     cmp #$09                ; *HELP service call
     beq help_command
     cmp #$04                ; unrecognised *command
-    beq check_command
-    rts                     ; unhandled, return A unchanged (non-zero = continue scan)
+    beq geos_entry
+    cmp #$0B                ; ROM init (called at boot)
+    beq boot_test
+    rts                     ; unhandled
 
 ; -----------------------------------------------------------------------
-; *HELP: print help text, return A != 0 (don't claim, let other ROMs print)
+; Boot init
 ; -----------------------------------------------------------------------
-help_command:
-    jsr print_help_text
-    lda #1                  ; A != 0: continue scanning to next ROM
+boot_test:
     rts
 
 ; -----------------------------------------------------------------------
-; Unrecognised *command: Y = offset to command in ($F2) string buffer
+; *HELP
 ; -----------------------------------------------------------------------
-check_command:
-    tya
-    clc
-    adc $F2
-    sta r0L
+help_command:
+    jsr print_help_text
+    lda #1
+    rts
+
+; -----------------------------------------------------------------------
+; *GEOS entry — reset, init, infinite loop
+; Despite all-white screen, writes to BOTH graphics ($3000) and
+; teletext ($7C00) screen memory so ANY mode shows a visible change.
+; -----------------------------------------------------------------------
+geos_entry:
+    sei
+    cld
+    ldx #$FF
+    txs
+    cli
+    ; --- First try OSWRCH: switch to mode 0 (black background) ---
+    lda #22
+    jsr OSWRCH
     lda #0
-    adc $F3
-    sta r0H
-    ldy #0
-    jsr skip_spaces
-    ldy #0
-:   lda cmd_geos,y
-    beq match_geos
-    cmp (r0L),y
-    bne not_match
-    iny
-    bne :-
-match_geos:
-    jmp _ResetHandle
+    jsr OSWRCH
+    ; --- Fill top row of mode 0 framebuffer with white ($FF) ---
+    ldx #79
+    lda #$FF
+:   sta $3000,x
+    dex
+    bpl :-
+    ; --- Write "GEOS" to teletext screen memory ---
+    lda #'G'
+    sta $7C00
+    lda #'E'
+    sta $7C01
+    lda #'O'
+    sta $7C02
+    lda #'S'
+    sta $7C03
+    jmp *
+
 not_match:
-    lda #1                  ; A != 0: continue scanning to next ROM
+    lda #1
     rts
 
 cmd_geos:
@@ -130,64 +148,6 @@ print_help_text:
     inx
     bne :-
 :   rts
-
-; ===========================================================
-; Reset Handler
-; ===========================================================
-_ResetHandle:
-    sei
-    cld
-    ldx #$FF
-    txs
-
-    ; Initialize hardware (mode set via OS, may clobber vectors)
-    jsr init_hardware
-
-    ; Install our IRQ handler into OS vector
-    lda #<_IRQHandler
-    sta $0202
-    lda #>_IRQHandler
-    sta $0203
-
-    ; Clear BSS area ($2E00-$2FFF)
-    lda #0
-    ldx #0
-:   sta $2E00,x
-    sta $2F00,x
-    inx
-    bne :-
-
-    ; Init GEOS kernel
-    jsr InitGEOEnv
-    jsr MouseInit
-
-    ; Draw checkerboard test pattern (verify hardware display)
-    jsr draw_checkerboard
-
-    ; Delay ~2 seconds so user can see the checkerboard
-    lda #12
-    sta r4L
-delay_1:
-    lda #0
-    sta r3L
-delay_2:
-    lda #0
-    sta r2L
-delay_3:
-    dec r2L
-    bne delay_3
-    dec r3L
-    bne delay_2
-    dec r4L
-    bne delay_1
-
-    ; Draw to screen
-    jsr draw_desktop
-
-    ; Start 100Hz timer and enter GEOS main loop
-    jsr initVIA
-    cli
-    jmp EnterDeskTop
 
 skip_spaces:
 :   lda (r0L),y
@@ -231,16 +191,21 @@ init_hardware:
     lda #25
     sta CRTC_DATA
 
-    ; Override start address: MA=$0938 → physical $3000+$0938=$3938
-    ; SCREEN_BASE=$3900, pixel data at $3938 (= SCREEN_BASE + 56)
-    lda #CRTC_R12
-    sta CRTC_ADDR
-    lda #$09                ; high 6 bits of MA = $09
-    sta CRTC_DATA
-    lda #CRTC_R13
-    sta CRTC_ADDR
-    lda #$38                ; low 8 bits of MA = $38
-    sta CRTC_DATA
+    ; Use OSWORD 14 to set screen base address to $3900
+    ; Parameter block: start=$3900 end=$5FFF
+    ; OS writes this as: physical=$3900 → CRTC MA = physical - $3000 = $0900
+    ; But we want MA=$0938 (physical $3938 = SCREEN_BASE+56)
+    ; So set start=$3938 end=$5FFF
+    ldx #<scrbase_block
+    ldy #>scrbase_block
+    lda #14
+    jsr OSWORD
+
+    rts
+
+scrbase_block:
+    .word $3938              ; start address (physical)
+    .word $5FFF              ; end address
 
     ; Clear screen to black ($3900-$5FFF = 9KB)
     lda #>$3900
