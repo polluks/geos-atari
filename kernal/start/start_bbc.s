@@ -60,11 +60,11 @@
 ;   $8007: version (BCD)
 ;   $8008: null-terminated title
 .segment "rom_header"
-    .byte $00, $00, $00         ; no language entry
+    jmp _ResetHandle            ; language entry (JMP to GEOS init)
     jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
-    .byte $82                   ; ROM type: service entry (bit7=1) no language
-    .byte $90                   ; bit7=1: copyright offset $10 → $8010; also version 1.0
-    .byte $01, "GEOS!", $00, $00 ; prefix + null-terminated title
+    .byte $C2                   ; ROM type: language+service (bit7=1, bit6=1) + 6502 (bit1=1)
+    .byte $0F                   ; copyright offset $0F → $800F: $00 $28 $43 $29 = "\0(C)" matches MOS
+    .byte $01, "GEOS!", $00, $00 ; version byte + null-terminated title + padding
     .byte $28, $43, $29         ; "(C)" copyright string for MOS boot scan
 
 ; ===========================================================
