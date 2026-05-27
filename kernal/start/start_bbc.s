@@ -62,7 +62,7 @@
 .segment "rom_header"
     .byte $00, $00, $00         ; no language entry
     jmp rom_service             ; service entry (3 bytes: $4C, lo, hi)
-    .byte $80                   ; ROM type: service entry (bit7=1) no language
+    .byte $82                   ; ROM type: service entry (bit7=1) no language
     .byte $90                   ; bit7=1: copyright offset $10 → $8010; also version 1.0
     .byte $01, "GEOS!", $00, $00 ; prefix + null-terminated title
     .byte $28, $43, $29         ; "(C)" copyright string for MOS boot scan
