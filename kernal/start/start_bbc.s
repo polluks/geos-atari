@@ -78,7 +78,7 @@ rom_service:
     cmp #$09                ; *HELP service call
     beq help_command
     cmp #$04                ; unrecognised *command
-    beq geos_entry
+    beq check_command
     cmp #$0B                ; ROM init (called at boot)
     beq boot_test
     rts                     ; unhandled
@@ -98,37 +98,27 @@ help_command:
     rts
 
 ; -----------------------------------------------------------------------
-; *GEOS entry — reset, init, infinite loop
-; Despite all-white screen, writes to BOTH graphics ($3000) and
-; teletext ($7C00) screen memory so ANY mode shows a visible change.
+; Check *command: parse "GEOS" from MOS buffer
 ; -----------------------------------------------------------------------
-geos_entry:
-    sei
-    cld
-    ldx #$FF
-    txs
-    cli
-    ; --- First try OSWRCH: switch to mode 0 (black background) ---
-    lda #22
-    jsr OSWRCH
+check_command:
+    tya
+    clc
+    adc $F2
+    sta r0L
     lda #0
-    jsr OSWRCH
-    ; --- Fill top row of mode 0 framebuffer with white ($FF) ---
-    ldx #79
-    lda #$FF
-:   sta $3000,x
-    dex
-    bpl :-
-    ; --- Write "GEOS" to teletext screen memory ---
-    lda #'G'
-    sta $7C00
-    lda #'E'
-    sta $7C01
-    lda #'O'
-    sta $7C02
-    lda #'S'
-    sta $7C03
-    jmp *
+    adc $F3
+    sta r0H
+    ldy #0
+    jsr skip_spaces
+    ldy #0
+:   lda cmd_geos,y
+    beq match_geos
+    cmp (r0L),y
+    bne not_match
+    iny
+    bne :-
+match_geos:
+    jmp _ResetHandle
 
 not_match:
     lda #1
@@ -136,6 +126,64 @@ not_match:
 
 cmd_geos:
     .byte "GEOS", 0
+
+; ===========================================================
+; Reset Handler — full GEOS init
+; ===========================================================
+_ResetHandle:
+    sei
+    cld
+    ldx #$FF
+    txs
+
+    ; Initialize hardware (mode set via OS, may clobber vectors)
+    jsr init_hardware
+
+    ; Install our IRQ handler into OS vector
+    lda #<_IRQHandler
+    sta $0202
+    lda #>_IRQHandler
+    sta $0203
+
+    ; Clear BSS area ($2E00-$2FFF)
+    lda #0
+    ldx #0
+:   sta $2E00,x
+    sta $2F00,x
+    inx
+    bne :-
+
+    ; Init GEOS kernel
+    jsr InitGEOEnv
+    jsr MouseInit
+
+    ; Draw checkerboard test pattern (verify hardware display)
+    jsr draw_checkerboard
+
+    ; Delay ~2 seconds so user can see the checkerboard
+    lda #12
+    sta r4L
+delay_1:
+    lda #0
+    sta r3L
+delay_2:
+    lda #0
+    sta r2L
+delay_3:
+    dec r2L
+    bne delay_3
+    dec r3L
+    bne delay_2
+    dec r4L
+    bne delay_1
+
+    ; Draw to screen
+    jsr draw_desktop
+
+    ; Start 100Hz timer and enter GEOS main loop
+    jsr initVIA
+    cli
+    jmp EnterDeskTop
 
 help_text:
     .byte "GEOS KERNEL for BBC", 13, 10, 0
